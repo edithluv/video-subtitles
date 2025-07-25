@@ -15,4 +15,3 @@ name = "video-subtitle-app"
 
 [services.variables]
 ASSEMBLYAI_API_KEY = "${{ASSEMBLYAI_API_KEY}}"
-
