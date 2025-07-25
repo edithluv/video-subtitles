@@ -1,14 +1,18 @@
 [build]
-builder = "DOCKERFILE"
+builder = "NIXPACKS"
 
 [deploy]
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
+numReplicas = 1
+
+[env]
+NODE_ENV = "production"
 
 [[services]]
 name = "video-subtitle-app"
 
 [services.variables]
 ASSEMBLYAI_API_KEY = "${{ASSEMBLYAI_API_KEY}}"
-NODE_ENV = "production"
+
