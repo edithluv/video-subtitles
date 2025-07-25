@@ -5,10 +5,11 @@ builder = "NIXPACKS"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
-numReplicas = 1
 
 [env]
 NODE_ENV = "production"
+NIXPACKS_NODE_VERSION = "18"
+NPM_CONFIG_PRODUCTION = "false"
 
 [[services]]
 name = "video-subtitle-app"
