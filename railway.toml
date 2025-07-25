@@ -1,0 +1,14 @@
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+
+[[services]]
+name = "video-subtitle-app"
+
+[services.variables]
+ASSEMBLYAI_API_KEY = "${{ASSEMBLYAI_API_KEY}}"
+NODE_ENV = "production"
