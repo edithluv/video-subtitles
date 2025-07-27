@@ -101,26 +101,26 @@ def process_video(video_file_path, settings, api_token, progress_callback=None):
             
             # Step 1: Extract audio
             if progress_callback:
-                progress_callback("Extracting audio from video...")
+                progress_callback("Extracting audio from video@.")
             
             audio_path = temp_path / f"{base_name}_audio.mp3"
             extract_audio(str(video_path), str(audio_path))
             
             # Step 2: Upload to AssemblyAI
             if progress_callback:
-                progress_callback("Uploading audio to AssemblyAI...")
+                progress_callback("Uploading audio to AssemblyAI@.")
             
             upload_url = upload_file(api_token, str(audio_path))
             
             # Step 3: Create transcript
             if progress_callback:
-                progress_callback("Transcribing audio...")
+                progress_callback("Transcribing audio@.")
             
             transcript = create_transcript(api_token, upload_url)
             
             # Step 4: Export subtitles
             if progress_callback:
-                progress_callback("Exporting subtitles...")
+                progress_callback("Exporting subtitles@.")
             
             subtitle_content = export_subtitles(api_token, transcript['id'], settings.get('subtitleFormat', 'srt'))
             subtitle_path = temp_path / f"{base_name}.{settings.get('subtitleFormat', 'srt')}"
@@ -133,7 +133,7 @@ def process_video(video_file_path, settings, api_token, progress_callback=None):
             
             if settings.get('burnSubtitles', True):
                 if progress_callback:
-                    progress_callback("Burning subtitles into video...")
+                    progress_callback("Burning subtitles into video@.")
                 
                 output_path = temp_path / output_filename
                 burn_subtitles(str(video_path), str(subtitle_path), str(output_path))

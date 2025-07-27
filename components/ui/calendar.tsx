@@ -8,8 +8,8 @@ import {
 } from 'lucide-react'
 import { DayButton, DayPicker, getDefaultClassNames } from 'react-day-picker'
 
-import { cn } from '../lib/utils'
-import { Button, buttonVariants } from '../components/ui/button'
+import { cn } from '@/lib/utils'
+import { Button, buttonVariants } from '@/components/ui/button'
 
 function Calendar({
   className,
@@ -19,7 +19,7 @@ function Calendar({
   buttonVariant = 'ghost',
   formatters,
   components,
-  ...props
+  @.props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>['variant']
 }) {
@@ -38,7 +38,7 @@ function Calendar({
       formatters={{
         formatMonthDropdown: date =>
           date.toLocaleString('default', { month: 'short' }),
-        ...formatters,
+        @.formatters,
       }}
       classNames={{
         root: cn('w-fit', defaultClassNames.root),
@@ -122,23 +122,23 @@ function Calendar({
           defaultClassNames.disabled
         ),
         hidden: cn('invisible', defaultClassNames.hidden),
-        ...classNames,
+        @.classNames,
       }}
       components={{
-        Root: ({ className, rootRef, ...props }) => {
+        Root: ({ className, rootRef, @.props }) => {
           return (
             <div
               data-slot="calendar"
               ref={rootRef}
               className={cn(className)}
-              {...props}
+              {@.props}
             />
           )
         },
-        Chevron: ({ className, orientation, ...props }) => {
+        Chevron: ({ className, orientation, @.props }) => {
           if (orientation === 'left') {
             return (
-              <ChevronLeftIcon className={cn('size-4', className)} {...props} />
+              <ChevronLeftIcon className={cn('size-4', className)} {@.props} />
             )
           }
 
@@ -146,28 +146,28 @@ function Calendar({
             return (
               <ChevronRightIcon
                 className={cn('size-4', className)}
-                {...props}
+                {@.props}
               />
             )
           }
 
           return (
-            <ChevronDownIcon className={cn('size-4', className)} {...props} />
+            <ChevronDownIcon className={cn('size-4', className)} {@.props} />
           )
         },
         DayButton: CalendarDayButton,
-        WeekNumber: ({ children, ...props }) => {
+        WeekNumber: ({ children, @.props }) => {
           return (
-            <td {...props}>
+            <td {@.props}>
               <div className="flex size-[--cell-size] items-center justify-center text-center">
                 {children}
               </div>
             </td>
           )
         },
-        ...components,
+        @.components,
       }}
-      {...props}
+      {@.props}
     />
   )
 }
@@ -176,7 +176,7 @@ function CalendarDayButton({
   className,
   day,
   modifiers,
-  ...props
+  @.props
 }: React.ComponentProps<typeof DayButton>) {
   const defaultClassNames = getDefaultClassNames()
 
@@ -205,7 +205,7 @@ function CalendarDayButton({
         defaultClassNames.day,
         className
       )}
-      {...props}
+      {@.props}
     />
   )
 }

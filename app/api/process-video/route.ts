@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // Call Python script
     const pythonProcess = spawn("python3", [path.join(process.cwd(), "video_processor.py"), inputPath], {
       env: {
-        ...process.env,
+        @.process.env,
         ASSEMBLYAI_API_KEY: apiKey,
       },
     })

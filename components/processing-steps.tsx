@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { Card } from "../components/ui/card"
-import { Badge } from "../components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Circle, Loader2, XCircle } from "lucide-react"
 
 interface Step {
