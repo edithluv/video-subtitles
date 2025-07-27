@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
+import { Button } from "../components/ui/button"
 import { Alert, AlertDescription } from "../components/ui/alert"
 import {
   Upload,
@@ -17,9 +17,9 @@ import {
   Subtitles,
   Video,
 } from "lucide-react"
-import FileUpload from "@/components/file-upload"
-import ProcessingSteps from "@/components/processing-steps"
-import SettingsPanel from "@/components/settings-panel"
+import FileUpload from "../components/file-upload"
+import ProcessingSteps from "../components/processing-steps"
+import SettingsPanel from "../components/settings-panel"
 import StatusDisplay from "@/components/status-display"
 
 export default function VideoSubtitleApp() {
