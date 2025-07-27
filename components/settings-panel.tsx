@@ -20,7 +20,7 @@ interface SettingsPanelProps {
 
 export default function SettingsPanel({ settings, onSettingsChange, disabled = false }: SettingsPanelProps) {
   const updateSetting = (key: keyof Settings, value: any) => {
-    onSettingsChange({ @.settings, [key]: value })
+    onSettingsChange({ ...settings, [key]: value })
   }
 
   return (
