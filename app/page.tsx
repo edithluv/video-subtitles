@@ -9,7 +9,6 @@ import {
   FileVideo,
   Download,
   Settings,
-  CheckCircle,
   AlertCircle,
   Loader2,
   Play,
@@ -72,24 +71,34 @@ export default function VideoSubtitleApp() {
       formData.append("video", file)
       formData.append("settings", JSON.stringify(settings))
 
-      // Simulate the processing steps
-      for (let i = 0; i < steps.length; i++) {
-        setCurrentStep(i + 1)
+      // Make actual API call to process video
+      const response = await fetch("/api/process-video", {
+        method: "POST",
+        body: formData,
+      })
 
-        // Simulate API call to backend
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-
-        setProgress(((i + 1) / steps.length) * 100)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to process video")
       }
 
-      // Generate the output filename with proper extension
-      const fileExtension = originalFileName.split(".").pop() || "mp4"
-      const baseName = originalFileName.replace(/\.[^/.]+$/, "")
-      const outputFileName = `${baseName}_subtitled.${fileExtension}`
+      const result = await response.json()
 
-      // Simulate successful completion with proper filename
+      // Simulate progress updates during processing
+      const steps = [1, 2, 3, 4, 5]
+      for (let i = 0; i < steps.length; i++) {
+        setCurrentStep(i + 1)
+        setProgress(((i + 1) / steps.length) * 100)
+
+        // Add delay to show progress
+        if (i < steps.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+        }
+      }
+
+      // Set the real download URL from the API response
       setStatus("completed")
-      setOutputUrl(`/api/download/${encodeURIComponent(outputFileName)}`)
+      setOutputUrl(result.downloadUrl)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during processing")
       setStatus("error")
@@ -155,7 +164,7 @@ export default function VideoSubtitleApp() {
                 {isProcessing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing@.
+                    Processing...
                   </>
                 ) : (
                   <>
@@ -165,51 +174,28 @@ export default function VideoSubtitleApp() {
                 )}
               </Button>
 
-              {status === "completed" && (
+              {status === "completed" && outputUrl && (
                 <div className="space-y-2">
                   <Button
                     variant="outline"
                     className="w-full bg-transparent"
                     size="lg"
                     onClick={() => {
-                      // Create a demo file for download
-                      const originalName = file?.name || "video.mp4"
-                      const fileExtension = originalName.split(".").pop() || "mp4"
-                      const baseName = originalName.replace(/\.[^/.]+$/, "")
-                      const outputFileName = `${baseName}_subtitled.${fileExtension}`
-
-                      // Create a blob with demo content
-                      const demoContent = `This is a demo file. In production, this would be your processed video with subtitles.
-
-Original file: ${originalName}
-Output file: ${outputFileName}
-Settings used: ${JSON.stringify(settings, null, 2)}
-
-To make this work with real video processing:
-1. Deploy to a platform that supports Python and ffmpeg
-2. Set up the ASSEMBLYAI_API_KEY environment variable
-3. The backend will process your video and return the actual file
-
-For now, this demonstrates the UI/UX flow.`
-
-                      const blob = new Blob([demoContent], { type: "text/plain" })
-                      const url = URL.createObjectURL(blob)
-
-                      const a = document.createElement("a")
-                      a.href = url
-                      a.download = `${outputFileName}.txt`
-                      document.body.appendChild(a)
-                      a.click()
-                      document.body.removeChild(a)
-                      URL.revokeObjectURL(url)
+                      // Create download link for the actual processed video
+                      const link = document.createElement("a")
+                      link.href = outputUrl
+                      link.download = "" // Let the server set the filename
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
                     }}
                   >
                     <Download className="mr-2 h-4 w-4" />
-                    Download Demo File (Text)
+                    Download Processed Video
                   </Button>
 
                   <p className="text-xs text-slate-500 text-center">
-                    Demo mode: Downloads a text file. Deploy with Python backend for actual video processing.
+                    Your video has been processed with AI-generated subtitles
                   </p>
                 </div>
               )}
@@ -250,12 +236,12 @@ For now, this demonstrates the UI/UX flow.`
 
             {/* Success Message */}
             {status === "completed" && (
-              <Alert className="border-green-200 bg-green-50">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  Your video has been successfully processed with subtitles! You can now download the final video.
-                </AlertDescription>
-              </Alert>
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <strong>Success!</strong> Your video has been processed with AI-generated subtitles and is ready for
+                  download.
+                </p>
+              </div>
             )}
           </div>
         </div>
