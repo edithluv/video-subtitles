@@ -27,12 +27,21 @@ export async function POST(request: NextRequest) {
     const baseName = originalName.replace(/\.[^/.]+$/, "")
     const inputPath = path.join(tempDir, `${processingId}_input.${fileExtension}`)
 
+    console.log(`Processing video: ${originalName}`)
+    console.log(`Input path: ${inputPath}`)
+
     const arrayBuffer = await file.arrayBuffer()
     await fs.writeFile(inputPath, new Uint8Array(arrayBuffer))
+
+    // Verify input file was saved
+    const inputStats = await fs.stat(inputPath)
+    console.log(`Input file saved: ${inputStats.size} bytes`)
 
     // Process video using Python script
     const outputFileName = `${baseName}_subtitled.${fileExtension}`
     const outputPath = path.join(tempDir, `${processingId}_${outputFileName}`)
+
+    console.log(`Expected output path: ${outputPath}`)
 
     const apiKey = process.env.ASSEMBLYAI_API_KEY
     if (!apiKey) {
@@ -55,32 +64,43 @@ export async function POST(request: NextRequest) {
     let error = ""
 
     pythonProcess.stdout.on("data", (data) => {
-      output += data.toString()
-      console.log("Python output:", data.toString())
+      const message = data.toString()
+      output += message
+      console.log("Python stdout:", message.trim())
     })
 
     pythonProcess.stderr.on("data", (data) => {
-      error += data.toString()
-      console.error("Python error:", data.toString())
+      const message = data.toString()
+      error += message
+      console.error("Python stderr:", message.trim())
     })
 
     // Wait for Python script to complete
-    await new Promise((resolve, reject) => {
+    const exitCode = await new Promise<number>((resolve, reject) => {
       pythonProcess.on("close", (code) => {
         console.log(`Python script exited with code ${code}`)
-        if (code === 0) {
-          resolve(code)
-        } else {
-          reject(new Error(`Python script failed with code ${code}: ${error}`))
-        }
+        resolve(code || 0)
+      })
+
+      pythonProcess.on("error", (err) => {
+        console.error("Python process error:", err)
+        reject(err)
       })
     })
 
+    if (exitCode !== 0) {
+      throw new Error(`Python script failed with exit code ${exitCode}. Error: ${error}`)
+    }
+
     // Check if output file exists
     try {
-      await fs.access(outputPath)
-    } catch {
-      throw new Error("Processed video file was not created")
+      const outputStats = await fs.stat(outputPath)
+      console.log(`Output file created: ${outputStats.size} bytes`)
+    } catch (fileError) {
+      console.error("Output file check failed:", fileError)
+      console.log("Python stdout:", output)
+      console.log("Python stderr:", error)
+      throw new Error(`Processed video file was not created. Python output: ${output}. Error: ${error}`)
     }
 
     // Clean up input file
