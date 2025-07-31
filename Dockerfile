@@ -13,6 +13,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install Node.js dependencies (works with or without lock file)
+RUN npm cache clean --force
 RUN npm install --omit=dev
 
 # Copy application code
