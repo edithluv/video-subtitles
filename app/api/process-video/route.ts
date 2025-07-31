@@ -41,7 +41,11 @@ export async function POST(request: NextRequest) {
     const outputFileName = `${baseName}_subtitled.${fileExtension}`
     const outputPath = path.join(tempDir, `${processingId}_${outputFileName}`)
 
+    // The actual output file that Python creates (based on the error message)
+    const actualOutputPath = path.join(tempDir, `${processingId}_input_subtitled.${fileExtension}`)
+
     console.log(`Expected output path: ${outputPath}`)
+    console.log(`Actual output path (from Python): ${actualOutputPath}`)
 
     const apiKey = process.env.ASSEMBLYAI_API_KEY
     if (!apiKey) {
@@ -92,16 +96,24 @@ export async function POST(request: NextRequest) {
       throw new Error(`Python script failed with exit code ${exitCode}. Error: ${error}`)
     }
 
-    // Check if output file exists
+    // Check for both possible output paths
+    let finalOutputPath = outputPath
     try {
-      const outputStats = await fs.stat(outputPath)
-      console.log(`Output file created: ${outputStats.size} bytes`)
-    } catch (fileError) {
-      console.error("Output file check failed:", fileError)
-      console.log("Python stdout:", output)
-      console.log("Python stderr:", error)
-      throw new Error(`Processed video file was not created. Python output: ${output}. Error: ${error}`)
+      await fs.access(outputPath)
+      console.log(`Output file found at expected path: ${outputPath}`)
+    } catch {
+      try {
+        await fs.access(actualOutputPath)
+        console.log(`Output file found at alternate path: ${actualOutputPath}`)
+        finalOutputPath = actualOutputPath
+      } catch {
+        console.error("Output file not found at either expected location")
+        throw new Error(`Processed video file was not created. Python output: ${output}. Error: ${error}`)
+      }
     }
+
+    // Get the actual filename from the path
+    const finalFileName = path.basename(finalOutputPath)
 
     // Clean up input file
     await fs.unlink(inputPath).catch(console.error)
@@ -109,9 +121,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       processingId,
-      downloadUrl: `/api/download/${processingId}_${encodeURIComponent(outputFileName)}`,
+      downloadUrl: `/api/download/${encodeURIComponent(finalFileName)}`,
       originalFileName: originalName,
-      outputFileName: outputFileName,
+      outputFileName: finalFileName,
     })
   } catch (error) {
     console.error("Processing error:", error)
