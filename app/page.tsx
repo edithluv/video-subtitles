@@ -20,7 +20,7 @@ import {
 import FileUpload from "../components/file-upload"
 import ProcessingSteps from "../components/processing-steps"
 import SettingsPanel from "../components/settings-panel"
-import StatusDisplay from "@/components/status-display"
+import StatusDisplay from "../components/status-display"
 
 export default function VideoSubtitleApp() {
   const [file, setFile] = useState<File | null>(null)
