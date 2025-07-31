@@ -7,10 +7,15 @@ export async function GET(request: NextRequest, { params }: { params: { filename
     const filename = decodeURIComponent(params.filename)
     const filePath = path.join(process.cwd(), "temp", filename)
 
+    console.log(`Attempting to download file: ${filePath}`)
+
     // Check if file exists
     try {
       await fs.access(filePath)
-    } catch {
+      const stats = await fs.stat(filePath)
+      console.log(`File found, size: ${stats.size} bytes`)
+    } catch (error) {
+      console.error(`File not found: ${filePath}`)
       return NextResponse.json({ error: "File not found" }, { status: 404 })
     }
 
@@ -24,23 +29,26 @@ export async function GET(request: NextRequest, { params }: { params: { filename
     // Clean filename for download (remove processing ID)
     const cleanFilename = filename.replace(/^[a-f0-9-]+_/, "")
 
+    console.log(`Serving file: ${cleanFilename}, type: ${contentType}, size: ${fileBuffer.length}`)
+
     const response = new NextResponse(fileBuffer, {
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="${cleanFilename}"`,
+        "Content-Length": fileBuffer.length.toString(),
         "Cache-Control": "no-cache",
       },
     })
 
-    // Clean up file after sending (optional)
-    // You might want to implement a cleanup job instead
+    // Clean up file after 5 minutes
     setTimeout(async () => {
       try {
         await fs.unlink(filePath)
+        console.log(`Cleaned up file: ${filePath}`)
       } catch (error) {
         console.error("Failed to cleanup file:", error)
       }
-    }, 60000) // Delete after 1 minute
+    }, 300000) // 5 minutes
 
     return response
   } catch (error) {

@@ -39,28 +39,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "AssemblyAI API key not configured" }, { status: 500 })
     }
 
-    // Call Python script
-    const pythonProcess = spawn("python3", [path.join(process.cwd(), "video_processor.py"), inputPath], {
-      env: {
-        ...process.env,
-        ASSEMBLYAI_API_KEY: apiKey,
+    // Call Python script with proper arguments
+    const pythonProcess = spawn(
+      "python3",
+      [path.join(process.cwd(), "video_processor.py"), inputPath, outputPath, JSON.stringify(settings)],
+      {
+        env: {
+          ...process.env,
+          ASSEMBLYAI_API_KEY: apiKey,
+        },
       },
-    })
+    )
 
     let output = ""
     let error = ""
 
     pythonProcess.stdout.on("data", (data) => {
       output += data.toString()
+      console.log("Python output:", data.toString())
     })
 
     pythonProcess.stderr.on("data", (data) => {
       error += data.toString()
+      console.error("Python error:", data.toString())
     })
 
     // Wait for Python script to complete
     await new Promise((resolve, reject) => {
       pythonProcess.on("close", (code) => {
+        console.log(`Python script exited with code ${code}`)
         if (code === 0) {
           resolve(code)
         } else {
@@ -69,8 +76,15 @@ export async function POST(request: NextRequest) {
       })
     })
 
+    // Check if output file exists
+    try {
+      await fs.access(outputPath)
+    } catch {
+      throw new Error("Processed video file was not created")
+    }
+
     // Clean up input file
-    await fs.unlink(inputPath)
+    await fs.unlink(inputPath).catch(console.error)
 
     return NextResponse.json({
       success: true,
