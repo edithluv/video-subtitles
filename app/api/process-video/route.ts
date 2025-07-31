@@ -33,26 +33,18 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     await fs.writeFile(inputPath, new Uint8Array(arrayBuffer))
 
-    // Verify input file was saved
-    const inputStats = await fs.stat(inputPath)
-    console.log(`Input file saved: ${inputStats.size} bytes`)
-
     // Process video using Python script
     const outputFileName = `${baseName}_subtitled.${fileExtension}`
     const outputPath = path.join(tempDir, `${processingId}_${outputFileName}`)
 
-    // The actual output file that Python creates (based on the error message)
-    const actualOutputPath = path.join(tempDir, `${processingId}_input_subtitled.${fileExtension}`)
-
     console.log(`Expected output path: ${outputPath}`)
-    console.log(`Actual output path (from Python): ${actualOutputPath}`)
 
     const apiKey = process.env.ASSEMBLYAI_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: "AssemblyAI API key not configured" }, { status: 500 })
     }
 
-    // Call Python script with proper arguments
+    // Call Python script - it will save to the EXACT path we specify
     const pythonProcess = spawn(
       "python3",
       [path.join(process.cwd(), "video_processor.py"), inputPath, outputPath, JSON.stringify(settings)],
@@ -96,24 +88,14 @@ export async function POST(request: NextRequest) {
       throw new Error(`Python script failed with exit code ${exitCode}. Error: ${error}`)
     }
 
-    // Check for both possible output paths
-    let finalOutputPath = outputPath
+    // Check if output file exists at the expected location
     try {
-      await fs.access(outputPath)
-      console.log(`Output file found at expected path: ${outputPath}`)
-    } catch {
-      try {
-        await fs.access(actualOutputPath)
-        console.log(`Output file found at alternate path: ${actualOutputPath}`)
-        finalOutputPath = actualOutputPath
-      } catch {
-        console.error("Output file not found at either expected location")
-        throw new Error(`Processed video file was not created. Python output: ${output}. Error: ${error}`)
-      }
+      const outputStats = await fs.stat(outputPath)
+      console.log(`Output file created successfully: ${outputStats.size} bytes`)
+    } catch (fileError) {
+      console.error("Output file check failed:", fileError)
+      throw new Error(`Processed video file was not created at expected location: ${outputPath}`)
     }
-
-    // Get the actual filename from the path
-    const finalFileName = path.basename(finalOutputPath)
 
     // Clean up input file
     await fs.unlink(inputPath).catch(console.error)
@@ -121,9 +103,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       processingId,
-      downloadUrl: `/api/download/${encodeURIComponent(finalFileName)}`,
+      downloadUrl: `/api/download/${processingId}_${encodeURIComponent(outputFileName)}`,
       originalFileName: originalName,
-      outputFileName: finalFileName,
+      outputFileName: outputFileName,
     })
   } catch (error) {
     console.error("Processing error:", error)

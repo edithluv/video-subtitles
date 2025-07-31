@@ -4,17 +4,23 @@ import requests
 import time
 import tempfile
 import json
+import sys
 from pathlib import Path
 
 def extract_audio(video_path, audio_path):
     """Extract audio from video using ffmpeg"""
+    print(f"Progress: Extracting audio from video...")
     cmd = [
         "ffmpeg", "-y", "-i", video_path,
-        "-vn", "-acodec", "mp3", audio_path
+        "-vn", "-acodec", "mp3", "-ar", "16000", audio_path
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise Exception(f"Audio extraction failed: {result.stderr}")
+    
+    if not os.path.exists(audio_path):
+        raise Exception(f"Audio file was not created: {audio_path}")
+    
     return audio_path
 
 def read_file(filename, chunk_size=5242880):
@@ -28,6 +34,7 @@ def read_file(filename, chunk_size=5242880):
 
 def upload_file(api_token, path):
     """Upload file to AssemblyAI"""
+    print("Progress: Uploading audio to AssemblyAI...")
     headers = {'authorization': api_token}
     response = requests.post('https://api.assemblyai.com/v2/upload',
                              headers=headers,
@@ -39,6 +46,7 @@ def upload_file(api_token, path):
 
 def create_transcript(api_token, audio_url):
     """Create transcript using AssemblyAI"""
+    print("Progress: Transcribing audio...")
     url = "https://api.assemblyai.com/v2/transcript"
     headers = {
         "authorization": api_token,
@@ -55,10 +63,12 @@ def create_transcript(api_token, audio_url):
     
     while True:
         transcription_result = requests.get(polling_endpoint, headers=headers).json()
-        if transcription_result['status'] == 'completed':
+        status = transcription_result['status']
+        
+        if status == 'completed':
             break
-        elif transcription_result['status'] == 'error':
-            raise Exception(f"Transcription failed: {transcription_result['error']}")
+        elif status == 'error':
+            raise Exception(f"Transcription failed: {transcription_result.get('error', 'Unknown error')}")
         else:
             time.sleep(3)
     
@@ -66,6 +76,7 @@ def create_transcript(api_token, audio_url):
 
 def export_subtitles(api_token, transcript_id, subtitle_format):
     """Export subtitles from AssemblyAI"""
+    print("Progress: Exporting subtitles...")
     url = f"https://api.assemblyai.com/v2/transcript/{transcript_id}/{subtitle_format}"
     headers = {"authorization": api_token}
     response = requests.get(url, headers=headers)
@@ -77,111 +88,83 @@ def export_subtitles(api_token, transcript_id, subtitle_format):
 
 def burn_subtitles(video_path, subtitle_path, output_path):
     """Burn subtitles into video using ffmpeg"""
+    print("Progress: Burning subtitles into video...")
+    
     cmd = [
-        "ffmpeg", "-y", "-i", video_path,
-        "-vf", f"subtitles={subtitle_path}",
+        "ffmpeg", "-y", 
+        "-i", video_path,
+        "-vf", f"subtitles={subtitle_path}:force_style='FontSize=24'",
+        "-c:a", "copy",
+        "-preset", "fast",
         output_path
     ]
+    
     result = subprocess.run(cmd, capture_output=True, text=True)
+    
     if result.returncode != 0:
         raise Exception(f"Subtitle burning failed: {result.stderr}")
+    
+    if not os.path.exists(output_path):
+        raise Exception(f"Output video file was not created: {output_path}")
+    
     return output_path
 
-def process_video(video_file_path, settings, api_token, progress_callback=None):
-    """Main video processing function"""
+def main():
     try:
+        if len(sys.argv) < 4:
+            print("Usage: python video_processor.py <input_video> <output_video> <settings_json>")
+            sys.exit(1)
+        
+        input_video = sys.argv[1]
+        output_video = sys.argv[2]  # This is the EXACT path where the API expects the file
+        settings = json.loads(sys.argv[3])
+        
+        if not os.path.exists(input_video):
+            raise Exception(f"Input video file does not exist: {input_video}")
+        
+        api_token = os.getenv("ASSEMBLYAI_API_KEY")
+        if not api_token:
+            raise Exception("ASSEMBLYAI_API_KEY environment variable not set")
+        
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             
-            # Get file info
-            video_path = Path(video_file_path)
-            base_name = video_path.stem
-            extension = video_path.suffix
-            
             # Step 1: Extract audio
-            if progress_callback:
-                progress_callback("Extracting audio from video@.")
-            
-            audio_path = temp_path / f"{base_name}_audio.mp3"
-            extract_audio(str(video_path), str(audio_path))
+            audio_path = temp_path / "audio.mp3"
+            extract_audio(input_video, str(audio_path))
             
             # Step 2: Upload to AssemblyAI
-            if progress_callback:
-                progress_callback("Uploading audio to AssemblyAI@.")
-            
             upload_url = upload_file(api_token, str(audio_path))
             
             # Step 3: Create transcript
-            if progress_callback:
-                progress_callback("Transcribing audio@.")
-            
             transcript = create_transcript(api_token, upload_url)
             
             # Step 4: Export subtitles
-            if progress_callback:
-                progress_callback("Exporting subtitles@.")
-            
-            subtitle_content = export_subtitles(api_token, transcript['id'], settings.get('subtitleFormat', 'srt'))
-            subtitle_path = temp_path / f"{base_name}.{settings.get('subtitleFormat', 'srt')}"
+            subtitle_format = settings.get('subtitleFormat', 'srt')
+            subtitle_content = export_subtitles(api_token, transcript['id'], subtitle_format)
+            subtitle_path = temp_path / f"subtitles.{subtitle_format}"
             
             with open(subtitle_path, 'wb') as f:
                 f.write(subtitle_content)
             
-            # Step 5: Burn subtitles (if enabled)
-            output_filename = f"{base_name}_subtitled{extension}"
-            
+            # Step 5: Process video - SAVE TO THE EXACT PATH THE API EXPECTS
             if settings.get('burnSubtitles', True):
-                if progress_callback:
-                    progress_callback("Burning subtitles into video@.")
-                
-                output_path = temp_path / output_filename
-                burn_subtitles(str(video_path), str(subtitle_path), str(output_path))
-                
-                # Return the processed video
-                with open(output_path, 'rb') as f:
-                    return f.read(), output_filename, subtitle_content
+                burn_subtitles(input_video, str(subtitle_path), output_video)
             else:
-                # Return original video with separate subtitle file
-                with open(video_path, 'rb') as f:
-                    return f.read(), video_path.name, subtitle_content
+                import shutil
+                shutil.copy2(input_video, output_video)
+            
+            # Verify the file was created at the expected location
+            if os.path.exists(output_video):
+                file_size = os.path.getsize(output_video)
+                print(f"Success! Output saved as: {output_video} ({file_size} bytes)")
+            else:
+                raise Exception(f"Failed to create output file at: {output_video}")
                     
     except Exception as e:
-        raise Exception(f"Video processing failed: {str(e)}")
+        print(f"ERROR: {str(e)}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
-    # CLI usage for testing
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python video_processor.py <video_file>")
-        sys.exit(1)
-    
-    video_file = sys.argv[1]
-    api_token = os.getenv("ASSEMBLYAI_API_KEY")
-    
-    if not api_token:
-        print("Error: ASSEMBLYAI_API_KEY environment variable not set")
-        sys.exit(1)
-    
-    settings = {
-        'subtitleFormat': 'srt',
-        'burnSubtitles': True,
-        'language': 'auto',
-        'fontSize': 'medium'
-    }
-    
-    def progress_print(message):
-        print(f"Progress: {message}")
-    
-    try:
-        video_data, filename, subtitle_data = process_video(video_file, settings, api_token, progress_print)
-        
-        # Save output
-        with open(filename, 'wb') as f:
-            f.write(video_data)
-        
-        print(f"Success! Output saved as: {filename}")
-        
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
+    main()
