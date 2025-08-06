@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
+import { Button } from "../components/ui/button"
+import { Alert, AlertDescription } from "../components/ui/alert"
 import {
   Upload,
   FileVideo,
@@ -16,10 +16,10 @@ import {
   Subtitles,
   Video,
 } from "lucide-react"
-import FileUpload from "@/components/file-upload"
-import ProcessingSteps from "@/components/processing-steps"
-import SettingsPanel from "@/components/settings-panel"
-import StatusDisplay from "@/components/status-display"
+import FileUpload from "../components/file-upload"
+import ProcessingSteps from "../components/processing-steps"
+import SettingsPanel from "../components/settings-panel"
+import StatusDisplay from "../components/status-display"
 
 export default function VideoSubtitleApp() {
   const [file, setFile] = useState<File | null>(null)
@@ -30,7 +30,6 @@ export default function VideoSubtitleApp() {
   const [status, setStatus] = useState<"idle" | "processing" | "completed" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
-  const [outputFileName, setOutputFileName] = useState<string>("")
   const [showSettings, setShowSettings] = useState(false)
   const [settings, setSettings] = useState({
     subtitleFormat: "srt",
@@ -53,7 +52,6 @@ export default function VideoSubtitleApp() {
     setStatus("idle")
     setError(null)
     setOutputUrl(null)
-    setOutputFileName("")
     setCurrentStep(0)
     setProgress(0)
   }, [])
@@ -101,48 +99,11 @@ export default function VideoSubtitleApp() {
       // Set the real download URL from the API response
       setStatus("completed")
       setOutputUrl(result.downloadUrl)
-      setOutputFileName(result.outputFileName)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during processing")
       setStatus("error")
     } finally {
       setIsProcessing(false)
-    }
-  }
-
-  const handleDownload = async () => {
-    if (!outputUrl) return
-
-    try {
-      // Fetch the file
-      const response = await fetch(outputUrl)
-
-      if (!response.ok) {
-        throw new Error("Download failed")
-      }
-
-      // Get the blob
-      const blob = await response.blob()
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-
-      // Set clean filename (remove processing ID)
-      const cleanFileName = outputFileName.replace(/^[a-f0-9-]+_/, "")
-      link.download = cleanFileName
-
-      // Trigger download
-      document.body.appendChild(link)
-      link.click()
-
-      // Cleanup
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error("Download error:", error)
-      setError("Failed to download file. Please try again.")
     }
   }
 
@@ -152,7 +113,6 @@ export default function VideoSubtitleApp() {
     setStatus("idle")
     setError(null)
     setOutputUrl(null)
-    setOutputFileName("")
     setCurrentStep(0)
     setProgress(0)
     setIsProcessing(false)
@@ -216,7 +176,20 @@ export default function VideoSubtitleApp() {
 
               {status === "completed" && outputUrl && (
                 <div className="space-y-2">
-                  <Button variant="outline" className="w-full bg-transparent" size="lg" onClick={handleDownload}>
+                  <Button
+                    variant="outline"
+                    className="w-full bg-transparent"
+                    size="lg"
+                    onClick={() => {
+                      // Create download link for the actual processed video
+                      const link = document.createElement("a")
+                      link.href = outputUrl
+                      link.download = "" // Let the server set the filename
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
+                    }}
+                  >
                     <Download className="mr-2 h-4 w-4" />
                     Download Processed Video
                   </Button>

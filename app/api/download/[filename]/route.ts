@@ -7,11 +7,11 @@ export async function GET(request: NextRequest, { params }: { params: { filename
     const filename = decodeURIComponent(params.filename)
     const filePath = path.join(process.cwd(), "temp", filename)
 
-    console.log(`Download request for: ${filename}`)
-    console.log(`Looking for file at: ${filePath}`)
+    console.log(`Attempting to download file: ${filePath}`)
 
     // Check if file exists
     try {
+      await fs.access(filePath)
       const stats = await fs.stat(filePath)
       console.log(`File found, size: ${stats.size} bytes`)
     } catch (error) {
@@ -24,25 +24,19 @@ export async function GET(request: NextRequest, { params }: { params: { filename
 
     // Get the file extension to set proper content type
     const extension = filename.split(".").pop()?.toLowerCase()
-    console.log(`File extension: ${extension}`)
+    const contentType = getContentType(extension || "")
 
     // Clean filename for download (remove processing ID)
     const cleanFilename = filename.replace(/^[a-f0-9-]+_/, "")
-    console.log(`Clean filename: ${cleanFilename}`)
 
-    // Set proper content type based on extension
-    const contentType = getContentType(extension || "")
-    console.log(`Content type: ${contentType}`)
+    console.log(`Serving file: ${cleanFilename}, type: ${contentType}, size: ${fileBuffer.length}`)
 
     const response = new NextResponse(fileBuffer, {
-      status: 200,
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="${cleanFilename}"`,
         "Content-Length": fileBuffer.length.toString(),
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
+        "Cache-Control": "no-cache",
       },
     })
 
@@ -72,7 +66,6 @@ function getContentType(extension: string): string {
     webm: "video/webm",
     flv: "video/x-flv",
     wmv: "video/x-ms-wmv",
-    m4v: "video/x-m4v",
     srt: "text/plain",
     vtt: "text/vtt",
     ass: "text/plain",
