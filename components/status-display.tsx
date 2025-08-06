@@ -81,8 +81,7 @@ export default function StatusDisplay({ file, status, progress, error }: StatusD
         {status === "completed" && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Demo Mode:</strong> This UI demonstrates the complete workflow. To process actual videos, deploy
-              with the Python backend and set up your AssemblyAI API key.
+              #<strong>Ready:</strong> Upload your video to generate subtitles. Your files are processed securely using our backend and AssemblyAI.
             </p>
           </div>
         )}
